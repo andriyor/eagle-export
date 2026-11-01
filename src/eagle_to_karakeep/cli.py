@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
 """Import an Eagle library into Karakeep. The library is only ever read.
 
-    uv run eagle_to_karakeep.py ~/Dropbox/main.library              # dry run
+    uv run eagle-to-karakeep ~/Dropbox/main.library              # dry run
     export KARAKEEP_URL=https://karakeep.example.com KARAKEEP_API_KEY=...
-    uv run eagle_to_karakeep.py ~/Dropbox/main.library --execute --limit 5
-    uv run eagle_to_karakeep.py ~/Dropbox/main.library --execute
+    uv run eagle-to-karakeep ~/Dropbox/main.library --execute --limit 5
+    uv run eagle-to-karakeep ~/Dropbox/main.library --execute
 
 Karakeep does not dedupe assets, so progress is kept in the state file: keep it
 between runs, and reruns only do what is left.

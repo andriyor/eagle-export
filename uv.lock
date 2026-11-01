@@ -177,7 +177,7 @@ wheels = [
 [[package]]
 name = "eagle-to-karakeep"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "requests" },
 ]

@@ -5,3 +5,10 @@ requires-python = ">=3.10"
 dependencies = [
     "requests>=2.34.2",
 ]
+
+[project.scripts]
+eagle-to-karakeep = "eagle_to_karakeep.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9,<1"]
+build-backend = "uv_build"

@@ -1,4 +1,4 @@
-"""Runs the importer against a fake Karakeep. uv run python -m unittest"""
+"""Runs the importer against a fake Karakeep. uv run python -m unittest discover -s tests"""
 import argparse
 import contextlib
 import io
@@ -10,7 +10,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-import eagle_to_karakeep as importer
+from eagle_to_karakeep import cli as importer
 
 
 class FakeKarakeep(BaseHTTPRequestHandler):
