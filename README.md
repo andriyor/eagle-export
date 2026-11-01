@@ -1,4 +1,4 @@
-# eagle-to-karakeep
+# eagle-export
 
 Imports an [Eagle](https://en.eagle.cool/) library into [Karakeep](https://github.com/karakeep-app/karakeep) or [Raindrop](https://raindrop.io/). The library is only read, never changed.
 
@@ -7,7 +7,7 @@ Imports an [Eagle](https://en.eagle.cool/) library into [Karakeep](https://githu
 Requires [uv](https://docs.astral.sh/uv/). Without `--execute` it is a dry run that reports what would be imported.
 
 ```bash
-uv run eagle-to-karakeep /path/to/main.library
+uv run eagle-export /path/to/main.library
 ```
 
 Create an API key in Karakeep's settings and put it in `.env`, which git ignores:
@@ -19,8 +19,8 @@ cp .env.example .env
 Then try a few items before importing everything:
 
 ```bash
-uv run --env-file .env eagle-to-karakeep /path/to/main.library --execute --limit 5
-uv run --env-file .env eagle-to-karakeep /path/to/main.library --execute
+uv run --env-file .env eagle-export /path/to/main.library --execute --limit 5
+uv run --env-file .env eagle-export /path/to/main.library --execute
 ```
 
 | Option | Default | Meaning |
@@ -36,9 +36,9 @@ uv run --env-file .env eagle-to-karakeep /path/to/main.library --execute
 Open an application in Raindrop's [integration settings](https://app.raindrop.io/settings/integrations), copy its test token to `RAINDROP_TOKEN` in `.env`, then run with `--target raindrop`:
 
 ```bash
-uv run eagle-to-karakeep /path/to/main.library --target raindrop
-uv run --env-file .env eagle-to-karakeep /path/to/main.library --target raindrop --execute --limit 5
-uv run --env-file .env eagle-to-karakeep /path/to/main.library --target raindrop --execute
+uv run eagle-export /path/to/main.library --target raindrop
+uv run --env-file .env eagle-export /path/to/main.library --target raindrop --execute --limit 5
+uv run --env-file .env eagle-export /path/to/main.library --target raindrop --execute
 ```
 
 Raindrop limits uploads per month: 100 MB on Free and 10 GB on Pro. When the next file doesn't fit, the import stops; run it again after the quota resets to continue. The import sends about two requests a second to stay within Raindrop's rate limit.

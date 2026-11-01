@@ -1,9 +1,9 @@
 """Import an Eagle library into Karakeep or Raindrop. The library is only ever read.
 
-    uv run eagle-to-karakeep ~/Dropbox/main.library              # dry run
-    uv run --env-file .env eagle-to-karakeep ~/Dropbox/main.library --execute --limit 5
-    uv run --env-file .env eagle-to-karakeep ~/Dropbox/main.library --execute
-    uv run --env-file .env eagle-to-karakeep ~/Dropbox/main.library --target raindrop --execute
+    uv run eagle-export ~/Dropbox/main.library              # dry run
+    uv run --env-file .env eagle-export ~/Dropbox/main.library --execute --limit 5
+    uv run --env-file .env eagle-export ~/Dropbox/main.library --execute
+    uv run --env-file .env eagle-export ~/Dropbox/main.library --target raindrop --execute
 
 Neither service dedupes uploads, so progress is kept in the state file: keep it
 between runs, and reruns only do what is left.

@@ -10,7 +10,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest import mock
 
-from eagle_to_karakeep import cli as importer
+from eagle_export import cli as importer
 from test_cli import add_item
 
 

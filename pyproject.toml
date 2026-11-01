@@ -1,5 +1,5 @@
 [project]
-name = "eagle-to-karakeep"
+name = "eagle-export"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
@@ -7,7 +7,7 @@ dependencies = [
 ]
 
 [project.scripts]
-eagle-to-karakeep = "eagle_to_karakeep.cli:main"
+eagle-export = "eagle_export.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.9,<1"]

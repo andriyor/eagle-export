@@ -10,7 +10,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from eagle_to_karakeep import cli as importer
+from eagle_export import cli as importer
 
 
 class FakeKarakeep(BaseHTTPRequestHandler):

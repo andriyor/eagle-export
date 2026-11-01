@@ -175,7 +175,7 @@ wheels = [
 ]
 
 [[package]]
-name = "eagle-to-karakeep"
+name = "eagle-export"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
