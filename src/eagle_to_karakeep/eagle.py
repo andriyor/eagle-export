@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timezone
 
 
 def walk_folders(folders, parent_id=None):
@@ -27,3 +28,14 @@ def find_file(folder, item):
         return os.path.join(folder, expected)
     media = [n for n in names if n != "metadata.json" and not n.endswith("_thumbnail.png")]
     return os.path.join(folder, media[0]) if len(media) == 1 else None
+
+
+def note_for(item):
+    parts = [item.get("annotation", "")]
+    parts += [comment.get("annotation", "") for comment in item.get("comments", [])]
+    return "\n\n".join(part for part in parts if part)
+
+
+def created_at(item):
+    created = item.get("btime") or item.get("modificationTime")
+    return datetime.fromtimestamp(created / 1000, timezone.utc).isoformat() if created else None

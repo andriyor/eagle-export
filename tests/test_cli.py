@@ -108,7 +108,7 @@ class ImportTest(unittest.TestCase):
     def run_importer(self, execute=True, limit=None, key="key"):
         args = argparse.Namespace(
             library=self.library, execute=execute, limit=limit, max_size_mb=1,
-            state=self.state, retry_pause=0,
+            state=self.state, retry_pause=0, target="karakeep",
         )
         url = f"http://127.0.0.1:{self.server.server_port}"
         output = io.StringIO()

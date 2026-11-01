@@ -1,4 +1,4 @@
-eagle-to-karakeep-state.json*
+eagle-to-*-state.json*
 __pycache__/
 .venv/
 .env
