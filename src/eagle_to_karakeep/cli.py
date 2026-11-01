@@ -15,7 +15,9 @@ from collections import Counter
 from datetime import datetime, timezone
 
 import requests
-from requests.adapters import HTTPAdapter, Retry
+
+from .eagle import find_file, load_items, walk_folders
+from .karakeep import ApiError, Karakeep
 
 CONTENT_TYPES = {
     "gif": "image/gif",
@@ -25,78 +27,9 @@ CONTENT_TYPES = {
     "png": "image/png",
     "webp": "image/webp",
 }
-RETRY_STATUSES = {429, 502, 503, 504}
 MAX_TITLE = 1000
 MAX_LIST_NAME = 100
 MAX_LIST_DESCRIPTION = 500
-
-
-class ApiError(Exception):
-    def __init__(self, status, message):
-        super().__init__(f"HTTP {status}: {message}")
-        self.status = status
-
-
-class Karakeep:
-    def __init__(self, url, api_key, pause=2):
-        self.base = url.rstrip("/") + "/api/v1"
-        self.session = requests.Session()
-        self.session.headers["Authorization"] = f"Bearer {api_key}"
-        # Dropbox can take longer to deliver a file than the server keeps a connection idle.
-        self.session.headers["Connection"] = "close"
-        # read=0: after a lost response the bookmark may exist, and a retry would duplicate it.
-        retry = Retry(
-            total=3,
-            read=0,
-            other=0,
-            status_forcelist=RETRY_STATUSES,
-            allowed_methods=None,
-            backoff_factor=pause,
-            raise_on_status=False,
-        )
-        adapter = HTTPAdapter(max_retries=retry)
-        self.session.mount("http://", adapter)
-        self.session.mount("https://", adapter)
-
-    def request(self, method, path, **kwargs):
-        response = self.session.request(method, self.base + path, timeout=300, **kwargs)
-        if not response.ok:
-            raise ApiError(response.status_code, response.text[:300])
-        return response.json() if response.content else None
-
-    def post_json(self, path, payload):
-        return self.request("POST", path, json=payload)
-
-    def upload(self, path, file_name, content_type):
-        with open(path, "rb") as file:
-            return self.request("POST", "/assets", files={"file": (file_name, file, content_type)})
-
-
-def walk_folders(folders, parent_id=None):
-    """Yield (folder, parent id), parents first so a list can name its parent."""
-    for folder in folders:
-        yield folder, parent_id
-        yield from walk_folders(folder.get("children", []), folder["id"])
-
-
-def load_items(library):
-    images = os.path.join(library, "images")
-    for entry in sorted(os.listdir(images)):
-        if not entry.endswith(".info"):
-            continue
-        folder = os.path.join(images, entry)
-        with open(os.path.join(folder, "metadata.json"), encoding="utf-8") as file:
-            yield folder, json.load(file)
-
-
-def find_file(folder, item):
-    """Name match first; Eagle's stored name can differ in Unicode form on macOS."""
-    names = os.listdir(folder)
-    expected = f"{item['name']}.{item['ext']}"
-    if expected in names:
-        return os.path.join(folder, expected)
-    media = [n for n in names if n != "metadata.json" and not n.endswith("_thumbnail.png")]
-    return os.path.join(folder, media[0]) if len(media) == 1 else None
 
 
 def skip_reason(folder, item, max_bytes):
