@@ -1,6 +1,6 @@
 # eagle-export
 
-Imports an [Eagle](https://en.eagle.cool/) library into [Karakeep](https://github.com/karakeep-app/karakeep) or [Raindrop](https://raindrop.io/). The library is only read, never changed.
+Imports an [Eagle](https://en.eagle.cool/) library into [Karakeep](https://github.com/karakeep-app/karakeep) [Raindrop](https://raindrop.io/) or [Resurf](https://resurf.so/). The library is only read, never changed.
 
 ## Usage
 
@@ -25,10 +25,10 @@ uv run --env-file .env eagle-export /path/to/main.library --execute
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--target NAME` | `karakeep` | `karakeep` or `raindrop` |
+| `--target NAME` | `karakeep` | `karakeep`, `raindrop` or `resurf` |
 | `--execute` | off | Send to the target |
 | `--limit N` | all | Import at most N items |
-| `--max-size-mb N` | 50 for Karakeep, 100 for Raindrop | Skip larger files; for Karakeep, match the server's `MAX_ASSET_SIZE_MB`. Use 300 for Raindrop Pro |
+| `--max-size-mb N` | 50 for Karakeep, 100 for Raindrop, 2048 for Resurf | Skip larger files; for Karakeep, match the server's `MAX_ASSET_SIZE_MB`. Use 300 for Raindrop Pro |
 | `--state PATH` | `eagle-to-<target>-state.json` | Progress file; keep a separate one per target |
 
 ## Raindrop
@@ -55,6 +55,27 @@ Raindrop limits uploads per month: 100 MB on Free and 10 GB on Pro. When the nex
 | Any other folders | Tags |
 
 Also not imported to Raindrop: folder descriptions, and anything Raindrop can't store. It accepts JPEG, PNG, GIF, WebP, HEIC, MP4, MOV, WMV, WebM, MP3, WAV, AIFF, FLAC, EPUB, PDF, Markdown and text files.
+
+## Resurf
+
+Needs the Resurf Mac app and no token: files are saved through the CLI inside the app. Set `RESURF_CLI` if it isn't in `/Applications`. Resurf also has its own Eagle importer that takes an EaglePack export, so try that first; this target is for when you want to control the import.
+
+```bash
+uv run eagle-export /path/to/main.library --target resurf
+uv run eagle-export /path/to/main.library --target resurf --execute --limit 5
+uv run eagle-export /path/to/main.library --target resurf --execute
+```
+
+| Eagle | Resurf |
+|---|---|
+| File, of any type | File capture |
+| Name | Title |
+| Source URL | Source URL |
+| Annotation and comments | Description |
+| Tags | Tags |
+| Folders | Spaces, flat, and an item can be in several |
+
+Also not imported to Resurf: created dates, because the CLI can't set them, so captures show the import date. Folder nesting and descriptions are lost too. Identical files in Eagle become one capture.
 
 ## What gets imported to Karakeep
 
@@ -92,4 +113,4 @@ If your server's AI tagging uses a cloud provider, every imported image is sent 
 uv run python -m unittest discover -s tests
 ```
 
-The tests run against fake Karakeep and Raindrop servers, so they need no real ones.
+The tests run against fake Karakeep and Raindrop servers and a fake Resurf CLI, so they need no real ones.

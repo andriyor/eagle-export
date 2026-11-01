@@ -1,11 +1,12 @@
-"""Import an Eagle library into Karakeep or Raindrop. The library is only ever read.
+"""Import an Eagle library into Karakeep, Raindrop or Resurf. The library is only ever read.
 
     uv run eagle-export ~/Dropbox/main.library              # dry run
     uv run --env-file .env eagle-export ~/Dropbox/main.library --execute --limit 5
     uv run --env-file .env eagle-export ~/Dropbox/main.library --execute
     uv run --env-file .env eagle-export ~/Dropbox/main.library --target raindrop --execute
+    uv run eagle-export ~/Dropbox/main.library --target resurf --execute
 
-Neither service dedupes uploads, so progress is kept in the state file: keep it
+Karakeep and Raindrop do not dedupe uploads, so progress is kept in the state file: keep it
 between runs, and reruns only do what is left.
 """
 import argparse
@@ -16,20 +17,21 @@ from collections import Counter
 
 import requests
 
-from . import karakeep, raindrop
+from . import karakeep, raindrop, resurf
 from .api import ApiError, Stopped
 from .eagle import find_file, load_items, walk_folders
 
 TARGETS = {
     "karakeep": (karakeep, karakeep.Karakeep),
     "raindrop": (raindrop, raindrop.Raindrop),
+    "resurf": (resurf, resurf.Resurf),
 }
 
 
 def skip_reason(folder, item, max_bytes, content_types):
     if item.get("isDeleted"):
         return "in Eagle trash"
-    if item.get("ext", "").lower() not in content_types:
+    if content_types is not None and item.get("ext", "").lower() not in content_types:
         return f"unsupported type .{item.get('ext')}"
     path = find_file(folder, item)
     if path is None:
@@ -79,7 +81,7 @@ def run(args, api_url, api_key):
     if not args.execute:
         print("dry run: nothing was sent, add --execute to import")
         return 0
-    if not api_url or not api_key:
+    if target.CREDENTIALS and (not api_url or not api_key):
         print(f"set {target.CREDENTIALS}", file=sys.stderr)
         return 2
 
@@ -110,13 +112,15 @@ def main():
     parser.add_argument("--target", choices=TARGETS, default="karakeep", help="where to import")
     parser.add_argument("--execute", action="store_true", help="send to the target; without it, only report")
     parser.add_argument("--limit", type=int, help="import at most this many items, for a trial")
-    parser.add_argument("--max-size-mb", type=int, help="skip larger files; default 50 for karakeep, 100 for raindrop")
+    parser.add_argument("--max-size-mb", type=int, help="skip larger files; default 50 for karakeep, 100 for raindrop, 2048 for resurf")
     parser.add_argument("--state", help="progress file; default eagle-to-<target>-state.json")
     parser.add_argument("--retry-pause", type=float, default=2, help=argparse.SUPPRESS)
     args = parser.parse_args()
     args.library = os.path.expanduser(args.library)
     args.max_size_mb = args.max_size_mb or TARGETS[args.target][0].MAX_SIZE_MB
     args.state = args.state or f"eagle-to-{args.target}-state.json"
+    if args.target == "resurf":
+        return run(args, os.environ.get("RESURF_CLI", resurf.CLI), None)
     if args.target == "raindrop":
         return run(args, raindrop.API_URL, os.environ.get("RAINDROP_TOKEN"))
     return run(args, os.environ.get("KARAKEEP_URL"), os.environ.get("KARAKEEP_API_KEY"))
