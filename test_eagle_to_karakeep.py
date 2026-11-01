@@ -1,4 +1,4 @@
-"""Runs the importer against a fake Karakeep. python3 -m unittest"""
+"""Runs the importer against a fake Karakeep. uv run python -m unittest"""
 import argparse
 import contextlib
 import io
@@ -33,11 +33,18 @@ class FakeKarakeep(BaseHTTPRequestHandler):
         if path in server.fail_once:
             server.fail_once.remove(path)
             return self.reply(500, {"error": "boom"})
+        if path in server.busy_once:
+            server.busy_once.remove(path)
+            return self.reply(503, {"error": "busy"})
         if path == "/assets":
             server.uploads.append(body)
             return self.reply(200, {"assetId": f"asset{len(server.uploads)}"})
         if path == "/bookmarks":
             server.bookmarks.append(json.loads(body))
+            if server.drop_response:
+                server.drop_response = False
+                self.close_connection = True
+                return None
             return self.reply(201, {"id": f"bookmark{len(server.bookmarks)}"})
         if path == "/lists":
             server.lists.append(json.loads(body))
@@ -93,6 +100,7 @@ class ImportTest(unittest.TestCase):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), FakeKarakeep)
         self.server.calls, self.server.uploads, self.server.bookmarks = [], [], []
         self.server.lists, self.server.tags, self.server.fail_once = [], {}, []
+        self.server.busy_once, self.server.drop_response = [], False
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
@@ -158,6 +166,28 @@ class ImportTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(len(self.server.bookmarks), 2)
         self.assertEqual(self.server.tags, {"bookmark1": ["art", "cute"]})
+
+    def test_busy_server_is_retried(self):
+        self.server.busy_once += ["/assets", "/bookmarks", "/lists"]
+        code, _ = self.run_importer()
+        self.assertEqual(code, 0)
+        self.assertEqual(len(self.server.bookmarks), 2)
+        self.assertEqual(len(self.server.lists), 2)
+
+    def test_lost_create_response_is_not_retried(self):
+        self.server.drop_response = True
+        code, output = self.run_importer()
+        self.assertEqual(code, 1)
+        self.assertIn("FAILED", output)
+        created = [call for call in self.server.calls if call == ("POST", "/bookmarks")]
+        self.assertEqual(len(created), 2)  # the dropped one, then item B, no retry of A
+
+    def test_unreachable_server_is_reported(self):
+        self.server.shutdown()
+        self.server.server_close()
+        code, output = self.run_importer()
+        self.assertEqual(code, 1)
+        self.assertIn("stopped:", output)
 
     def test_bad_key_stops_immediately(self):
         code, output = self.run_importer(key="wrong")

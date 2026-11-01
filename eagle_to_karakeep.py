@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Import an Eagle library into Karakeep. The library is only ever read.
 
-    python3 eagle_to_karakeep.py ~/Dropbox/main.library              # dry run
+    uv run eagle_to_karakeep.py ~/Dropbox/main.library              # dry run
     export KARAKEEP_URL=https://karakeep.example.com KARAKEEP_API_KEY=...
-    python3 eagle_to_karakeep.py ~/Dropbox/main.library --execute --limit 5
-    python3 eagle_to_karakeep.py ~/Dropbox/main.library --execute
+    uv run eagle_to_karakeep.py ~/Dropbox/main.library --execute --limit 5
+    uv run eagle_to_karakeep.py ~/Dropbox/main.library --execute
 
 Karakeep does not dedupe assets, so progress is kept in the state file: keep it
 between runs, and reruns only do what is left.
@@ -13,12 +13,11 @@ import argparse
 import json
 import os
 import sys
-import time
-import urllib.error
-import urllib.request
-import uuid
 from collections import Counter
 from datetime import datetime, timezone
+
+import requests
+from requests.adapters import HTTPAdapter, Retry
 
 CONTENT_TYPES = {
     "gif": "image/gif",
@@ -43,42 +42,36 @@ class ApiError(Exception):
 class Karakeep:
     def __init__(self, url, api_key, pause=2):
         self.base = url.rstrip("/") + "/api/v1"
-        self.api_key = api_key
-        self.pause = pause
+        self.session = requests.Session()
+        self.session.headers["Authorization"] = f"Bearer {api_key}"
+        # Dropbox can take longer to deliver a file than the server keeps a connection idle.
+        self.session.headers["Connection"] = "close"
+        # read=0: after a lost response the bookmark may exist, and a retry would duplicate it.
+        retry = Retry(
+            total=3,
+            read=0,
+            other=0,
+            status_forcelist=RETRY_STATUSES,
+            allowed_methods=None,
+            backoff_factor=pause,
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
-    def request(self, method, path, data=None, content_type="application/json", retry_network=True):
-        request = urllib.request.Request(self.base + path, data=data, method=method)
-        request.add_header("Authorization", f"Bearer {self.api_key}")
-        if data is not None:
-            request.add_header("Content-Type", content_type)
-        for attempt in range(4):
-            last = attempt == 3
-            try:
-                with urllib.request.urlopen(request, timeout=300) as response:
-                    body = response.read()
-                    return json.loads(body) if body else None
-            except urllib.error.HTTPError as error:
-                if last or error.code not in RETRY_STATUSES:
-                    raise ApiError(error.code, error.read().decode(errors="replace")[:300])
-            except urllib.error.URLError:
-                if last or not retry_network:
-                    raise
-            time.sleep(self.pause * 2**attempt)
+    def request(self, method, path, **kwargs):
+        response = self.session.request(method, self.base + path, timeout=300, **kwargs)
+        if not response.ok:
+            raise ApiError(response.status_code, response.text[:300])
+        return response.json() if response.content else None
 
-    def post_json(self, path, payload, retry_network=True):
-        return self.request("POST", path, json.dumps(payload).encode(), retry_network=retry_network)
+    def post_json(self, path, payload):
+        return self.request("POST", path, json=payload)
 
     def upload(self, path, file_name, content_type):
         with open(path, "rb") as file:
-            content = file.read()
-        boundary = uuid.uuid4().hex
-        head = (
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="file"; filename="{file_name}"\r\n'
-            f"Content-Type: {content_type}\r\n\r\n"
-        ).encode()
-        body = head + content + f"\r\n--{boundary}--\r\n".encode()
-        return self.request("POST", "/assets", body, f"multipart/form-data; boundary={boundary}")
+            return self.request("POST", "/assets", files={"file": (file_name, file, content_type)})
 
 
 def walk_folders(folders, parent_id=None):
@@ -181,10 +174,9 @@ def import_item(api, folder, item, state):
     entry = state.data["items"].get(item["id"])
     if entry is None:
         ext = item["ext"].lower()
-        # The upload name is ours because Eagle names can break the multipart header.
+        # The server mangles non-ASCII upload names; the bookmark carries the real one.
         asset = api.upload(find_file(folder, item), f"{item['id']}.{ext}", CONTENT_TYPES[ext])
-        # Never retried on a network error: the bookmark may exist already.
-        bookmark = api.post_json("/bookmarks", bookmark_for(item, asset["assetId"]), retry_network=False)
+        bookmark = api.post_json("/bookmarks", bookmark_for(item, asset["assetId"]))
         entry = {"bookmarkId": bookmark["id"], "done": False}
         state.data["items"][item["id"]] = entry
         state.save()
@@ -239,15 +231,12 @@ def run(args, api_url, api_key):
             try:
                 import_item(api, folder, item, state)
                 print(f"[{number}/{len(batch)}] {item['name']}")
-            except ApiError as error:
-                if error.status in (401, 403):
+            except (ApiError, OSError, ValueError) as error:
+                if getattr(error, "status", None) in (401, 403):
                     raise
                 failed += 1
                 print(f"[{number}/{len(batch)}] FAILED {item['name']}: {error}", file=sys.stderr)
-            except (OSError, ValueError) as error:
-                failed += 1
-                print(f"[{number}/{len(batch)}] FAILED {item['name']}: {error}", file=sys.stderr)
-    except ApiError as error:
+    except (ApiError, requests.RequestException) as error:
         print(f"stopped: {error}", file=sys.stderr)
         return 1
     print(f"finished, failed: {failed}" + (" (rerun to retry them)" if failed else ""))

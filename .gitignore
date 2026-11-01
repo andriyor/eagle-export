@@ -1,2 +1,3 @@
 eagle-to-karakeep-state.json*
 __pycache__/
+.venv/
