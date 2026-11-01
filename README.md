@@ -10,14 +10,17 @@ Requires [uv](https://docs.astral.sh/uv/). Without `--execute` it is a dry run t
 uv run eagle-to-karakeep /path/to/main.library
 ```
 
-Create an API key in Karakeep's settings, then try a few items before importing everything:
+Create an API key in Karakeep's settings and put it in `.env`, which git ignores:
 
 ```bash
-export KARAKEEP_URL=http://your-server:3000
-export KARAKEEP_API_KEY=...
+cp .env.example .env
+```
 
-uv run eagle-to-karakeep /path/to/main.library --execute --limit 5
-uv run eagle-to-karakeep /path/to/main.library --execute
+Then try a few items before importing everything:
+
+```bash
+uv run --env-file .env eagle-to-karakeep /path/to/main.library --execute --limit 5
+uv run --env-file .env eagle-to-karakeep /path/to/main.library --execute
 ```
 
 | Option | Default | Meaning |
